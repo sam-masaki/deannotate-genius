@@ -1,0 +1,32 @@
+{
+    "manifest_version": 2,
+    "name": "De-annotate Genius",
+    "version": "1.0",
+
+    "description": "Removes annotations and comments from Genius lyrics pages",
+
+    "icons": {
+        "48": "icons/icon-48.png",
+        "96": "icons/icon-96.png"
+    },
+
+    "content_scripts": [
+        {
+            "matches": ["*://*.genius.com/*-lyrics", "*://*.genius.com/*"],
+            "js": ["deannotate.js"],
+            "run_at": "document_end"
+        }
+    ],
+
+    "options_ui": {
+        "page": "options.html"
+    },
+
+    "permissions": ["storage"],
+
+    "browser-specific-settings": {
+        "gecko": {
+            "id": "deannotate-genius@smski.io"
+        }
+    }
+}
