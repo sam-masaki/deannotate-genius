@@ -1,138 +1,121 @@
-function onError(error) {
-    console.log(`Error loading settings: ${error}`);
+// Only load if there are lyrics/annotated text
+if (document.getElementsByClassName("lyrics").length !== 0
+    || document.getElementsByTagName("lyrics").length !== 0) {
+    browser.storage.sync.get(["annoUnrev", "annoVer", "annoAccept", "recirculated", "comments"]).then(gotSettings, onError)
 }
 
-var replacedComments = false
-var replacedRecirculated = false
-var replacedUnreviewed = false
-var replacedVerified = false
-var replacedAccepted = false
+var replacedComments
+var replacedRecirculated
+var replacedUnreviewed
+var replacedVerified
+var replacedAccepted
 
 function gotSettings(result) {
-    if (result.annoUnrev !== undefined) {
-        replacedUnreviewed = !result.annoUnrev
-    }
-    if (result.annoVer !== undefined) {
-        replacedVerified = !result.annoUnrev
-    }
-    if (result.annoAccept !== undefined) {
-        replacedAccepted = !result.annoUnrev
-    }
-    if (result.recirculated !== undefined) {
-        replacedRecirculated = !result.recirculated
-    }
-    if (result.comments !== undefined) {
-        replacedComments = !result.comments
-    }
-
-    if (document.getElementsByClassName("lyrics").length === 0
-        && document.getElementsByTagName("lyrics").length === 0) {
-        // This page doesn't have lyrics, so it isn't a song/something that has annotations
-        replacedUnreviewed = true
-        replacedVerified = true
-        replacedAccepted = true
-
-        replacedComments = true
-        replacedRecirculated = true
-    }
+    replacedUnreviewed = result.annoUnrev === undefined ? false : !result.annoUnrev
+    replacedVerified = result.annoVer === undefined ? false : !result.annoVer
+    replacedAccepted = result.annoAccept === undefined ? false : !result.annoAccept
+    replacedRecirculated = result.recirculated === undefined ? false : !result.recirculated
+    replacedComments = result.comments === undefined ? false : !result.comments
 
     // Remove initial annotations
     let allAnnotations = document.getElementsByClassName("referent")
-
     if (allAnnotations.length === 0) {
-        // There are no annotations
         replacedUnreviewed = true
         replacedVerified = true
         replacedAccepted = true
     } else {
         if (allAnnotations[0].parentElement.parentElement.className === "lyrics") {
-            // remove the initial annotations before they get replaced
+            console.log(allAnnotations[0])
             Array.from(allAnnotations).forEach(replaceAnnotation)
         }
     }
 
     // Remove initial "More From Genius" stuff
     let recirculatedInitial = document.querySelector('div [initial-content-for="recirculated_content"]')
-
     if (recirculatedInitial !== undefined) {
-        // Removed initial recirculated stuff doesn't regenerate, so we don't need to remove it again later
-        console.log("removed recirc initially")
         recirculatedInitial.replaceWith("")
     }
 
     observer.observe(document.body, { childList: true, subtree: true })
 }
 
-browser.storage.sync.get(["annoUnrev", "annoVer", "annoAccept", "recirculated", "comments"]).then(gotSettings, onError)
+function onError(error) {
+    console.log(`Error loading settings: ${error}`);
+}
 
-const observer = new MutationObserver(function(mutationsList) {
-    console.log("observed mutation")
-
+const observer = new MutationObserver(function() {
     checkComments()
     checkRecirculated()
     checkAnnotations()
     if (checkDone()) {
         observer.disconnect()
-        return
     }
 })
 
 function checkComments() {
-    if (!replacedComments) {
-        let comments = document.getElementsByTagName("comments")[0]
-        if (comments !== undefined) {
-            comments.replaceWith("")
-            replacedComments = true;
-            console.log("found comments")
-            return
-        }
+    if (replacedComments) {
+        return
+    }
+
+    let comments = document.getElementsByTagName("comments")[0]
+    if (comments !== undefined) {
+        comments.replaceWith("")
+        replacedComments = true;
     }
 }
 
 function checkRecirculated() {
-    if (!replacedRecirculated) {
-        let recirculated = document.getElementsByTagName("recirculated-content")[0]
-        if (recirculated !== undefined) {
-            recirculated.replaceWith("")
-            replacedRecirculated = true;
-            console.log("found recirculated")
-            return
-        }
+    if (replacedRecirculated) {
+        return
+    }
+
+    let recirculated = document.getElementsByTagName("recirculated-content")[0]
+    if (recirculated !== undefined) {
+        recirculated.replaceWith("")
+        replacedRecirculated = true;
     }
 }
 
 function checkAnnotations() {
-    if (!(replacedUnreviewed && replacedVerified && replacedAccepted)) {
-        let allAnnotations = document.getElementsByClassName("referent")
+    if (replacedUnreviewed && replacedVerified && replacedAccepted) {
+        return
+    }
 
-        if (allAnnotations.length === 0) {
-            return
-        }
+    let allAnnotations = document.getElementsByClassName("referent")
 
+    if (allAnnotations.length === 0) {
+        return
+    }
 
-        Array.from(allAnnotations).forEach(replaceAnnotation)
+    let oldLen = allAnnotations.length
+    Array.from(allAnnotations).forEach(replaceAnnotation)
 
+    if (allAnnotations.length < oldLen) {
         replacedUnreviewed = true
         replacedVerified = true
         replacedAccepted = true
-
-        console.log("found annotations")
     }
 }
 
 function replaceAnnotation(item) {
-    if (item.attributes["classification"].nodeValue === "verified" && replacedVerified) {
-        return;
+    let classification = item.attributes["classification"].nodeValue
+
+    console.log(item.innerText)
+    console.log(classification)
+
+    if (replacedVerified && classification === "verified") {
+        return
     }
-    if (item.attributes["classification"].nodeValue === "unreviewed" && replacedUnreviewed) {
-        return;
+    if (replacedUnreviewed && classification === "unreviewed") {
+        return
     }
-    if (item.attributes["classification"].nodeValue === "accepted" && replacedAccepted) {
-        return;
+    if (replacedAccepted && classification === "accepted") {
+        return
     }
 
-    var contents = item.innerText.split("\n")
-    var replacement = []
+    // Replace breaks in mulitiline annotations with <br> objects
+    let contents = item.innerText.split("\n")
+    let replacement = []
 
     contents.forEach(function(item) {
         replacement.push(item)
@@ -145,5 +128,9 @@ function replaceAnnotation(item) {
 }
 
 function checkDone() {
-    return replacedComments && replacedRecirculated && replacedVerified && replacedUnreviewed && replacedAccepted
+    return replacedComments
+        && replacedRecirculated
+        && replacedVerified
+        && replacedUnreviewed
+        && replacedAccepted
 }
