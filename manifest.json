@@ -23,8 +23,7 @@
     },
 
     "permissions": ["storage"],
-
-    "browser-specific-settings": {
+    "browser_specific_settings": {
         "gecko": {
             "id": "deannotate-genius@smski.io"
         }
