@@ -25,7 +25,6 @@ function gotSettings(result) {
         replacedAccepted = true
     } else {
         if (allAnnotations[0].parentElement.parentElement.className === "lyrics") {
-            console.log(allAnnotations[0])
             Array.from(allAnnotations).forEach(replaceAnnotation)
         }
     }
@@ -99,9 +98,6 @@ function checkAnnotations() {
 
 function replaceAnnotation(item) {
     let classification = item.attributes["classification"].nodeValue
-
-    console.log(item.innerText)
-    console.log(classification)
 
     if (replacedVerified && classification === "verified") {
         return
